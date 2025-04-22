@@ -1,0 +1,6 @@
+StepในการInstall
+1. main.go && go mod  "github/path"
+2. cmd || go get github.com/gofiber/fiber/v2
+3. import ตัว fiber เข้ามา ฬนmain.go 
+
+//test from scb
