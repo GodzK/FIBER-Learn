@@ -1,5 +1,18 @@
+--Nodemon--
+nodemon --exec go run . --signal SIGTERM
 StepในการInstall
 1. main.go && go mod  "github/path"
 2. cmd || go get github.com/gofiber/fiber/v2
 3. import ตัว fiber เข้ามา ฬนmain.go 
-4. stepในการทำ rest api  with go เราต้องประกาศ structมาก่อน 
+4. stepในการทำ rest api  with go เราต้องประกาศ structมาก่อน (ยากที่สุด) จัดการให้ดี
+
+//env file
+1. env เครื่อง (กาก)
+$env:SECRET // ดู SECRET
+$env:SECRET = "1234" // add SECRET
+2. .env file
+2.1 go get github.com/joho/godotenv
+2.2 import godotenvเข้ามา ในmain.go
+2.3 if err != godotenv.Load(); err != nil {
+    log.Fatal("load .env error")
+}

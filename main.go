@@ -1,9 +1,11 @@
 package main
 
 import (
-	"strconv"
-
+	"log"
+	"os"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
+	"github.com/joho/godotenv"
 )
 
 // ประกาศstruct
@@ -18,38 +20,56 @@ type Book struct {
 var books []Book
 
 func main() {
+	//handle error for loading dotenv
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("load .env error")
+	}
+	//viewพวกนี้สำหรับการส่งพวกhtml เเล้วทำการส่งข้อมูลต่างๆได้ สมัยนี้ไม่นิยมเเล้ว
+	engine := html.New("./views", ".html")
 	// app เป็นตัวเเทนการสื่อสาร คล้าย app = express()
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		Views: engine,
+	})
 	books = append(books, Book{ID: 1, Title: "Phakaphol", Author: "Phakaphol"})
 	books = append(books, Book{ID: 2, Title: "Pheeraphat", Author: "Phakaphol"})
-
 	//Make 1st Api for response all data || getBooksเฉยๆจะbypass ค่าทั้งหมดจากfunctionนั้นได้เลย feel JS
 	app.Get("/books", getBooks)
 	//with params
 	app.Get("/books/:id", getBook)
+	//test html
+	app.Get("/test-html", testHTML)
+	app.Get("/config", getENV)
+	app.Post("/books", createBook)
+	app.Post("/upload", uploadFile)
+	app.Put("/books/:id", updateBook)
+	app.Delete("/books/:id", deleteBook)
 	app.Listen(":8080")
 }
 
-func getBooks(c *fiber.Ctx) error {
-	if len(books) >= 2 {
-		return c.JSON(books)
-	}
-	return c.JSON("ข้อมูลน้อยกว่า2คน")
-}
-
-func getBook(c *fiber.Ctx) error {
-	//context = req,res,header,params จัดการได้ผ่านcontext
-	//Convert จาก int to string with strconv เเละใส่errเพื่อกันc เเปลงเป็นInt
-	bookid, err := strconv.Atoi(c.Params("id"))
-
+// that fire🔥
+func uploadFile(c *fiber.Ctx) error {
+	//key image
+	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
-	for _, book := range books {
-		if book.ID == bookid {
-			return c.JSON(book)
-		}
+	// Save file ระบุสองอย่าง คือ 1.file 2. relative path (ห้ามลืมใส่ /)
+	err = c.SaveFile(file, "./uploads/"+file.Filename)
+	//internal server error บอกว่าserverฒีปัญหาอะไรไม่รู้
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
-	return c.Status(fiber.StatusNotFound).SendString("Books Not Found Eiei")
-
+	return c.SendString("file upload complete !")
+}
+func testHTML(c *fiber.Ctx) error {
+	//indexในตำเเหน่งที่เราระบุpathไว้
+	return c.Render("index", fiber.Map{
+		//key balue
+		"Title": "Hello , World!",
+	})
+}
+func getENV(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"SECRET": os.Getenv("SECRET"),
+	})
 }
