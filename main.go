@@ -3,8 +3,12 @@ package main
 import (
 	"log"
 	"os"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	jwtware "github.com/gofiber/jwt/v2"
 	"github.com/gofiber/template/html/v2"
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/joho/godotenv"
 )
 
@@ -24,6 +28,7 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("load .env error")
 	}
+
 	//viewพวกนี้สำหรับการส่งพวกhtml เเล้วทำการส่งข้อมูลต่างๆได้ สมัยนี้ไม่นิยมเเล้ว
 	engine := html.New("./views", ".html")
 	// app เป็นตัวเเทนการสื่อสาร คล้าย app = express()
@@ -32,8 +37,18 @@ func main() {
 	})
 	books = append(books, Book{ID: 1, Title: "Phakaphol", Author: "Phakaphol"})
 	books = append(books, Book{ID: 2, Title: "Pheeraphat", Author: "Phakaphol"})
+	//login ห้ามcheck jwt
+	app.Post("/login", login)
+	//!using middleware
+	app.Use(checkmiddleware)
+	//!secret ที่เก็บเอาไว้เป็นsign key ที่อยู่ใน .env
+	app.Use(jwtware.New(jwtware.Config{
+		//ขาcheck
+		SigningKey: []byte(os.Getenv("JWT_SECRET")),
+	}))
 	//Make 1st Api for response all data || getBooksเฉยๆจะbypass ค่าทั้งหมดจากfunctionนั้นได้เลย feel JS
 	app.Get("/books", getBooks)
+
 	//with params
 	app.Get("/books/:id", getBook)
 	//test html
@@ -68,8 +83,59 @@ func testHTML(c *fiber.Ctx) error {
 		"Title": "Hello , World!",
 	})
 }
+func checkmiddleware(c *fiber.Ctx) error {
+	//เอาuserมาทำjwt token
+	user := c.Locals("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	if claims["role"] != "admin" {
+		return fiber.ErrUnauthorized
+	}
+	return c.Next()
+
+}
 func getENV(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"SECRET": os.Getenv("SECRET"),
+	})
+}
+
+type User struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+var memberUser = User{
+	Email:    "Phakaphol",
+	Password: "1234",
+}
+
+func login(c *fiber.Ctx) error {
+	user := new(User)
+	if err := c.BodyParser(user); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
+	if user.Email != memberUser.Email || user.Password != memberUser.Password {
+		return fiber.ErrUnauthorized
+	}
+	// Create token // Pattern
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// Set claims เก็บข้อมูลเเละencryptเป็นtoken set
+	claims := token.Claims.(jwt.MapClaims)
+	claims["email"] = user.Email
+	claims["role"] = "admin"
+	//unix สามารถคำนวณพวกMilisecได้ !
+	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+
+	// Generate encoded token
+	//jwtจะอยู่ใน t
+	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "login success",
+		"token":   t,
 	})
 }

@@ -16,3 +16,6 @@ $env:SECRET = "1234" // add SECRET
 2.3 if err != godotenv.Load(); err != nil {
     log.Fatal("load .env error")
 }
+
+//install jwt 
+1. go get -u github.com/gofiber/jwt/v2
